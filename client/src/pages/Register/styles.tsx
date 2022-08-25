@@ -7,12 +7,6 @@ export const RegisterContainer = styled.main`
   padding: 2rem 0;
 `
 
-export const LogoImage = styled.div`
-  display: flex;
-  height: 100px;
-  width: 100px;
-`
-
 export const FormContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -48,16 +42,6 @@ export const RegisterInput = styled.input`
   &::placeholder {
     color: ${(props) => props.theme['gray-500']};
   }
-`
-
-export const ImageContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  justify-content: center;
-  align-items: center;
-  width: 50%;
-  height: 100%;
-  background: ${(props) => props.theme.white};
 `
 
 export const SubmitRegisterButton = styled.button`

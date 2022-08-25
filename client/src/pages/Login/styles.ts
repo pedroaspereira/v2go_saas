@@ -4,11 +4,12 @@ export const LoginContainer = styled.main`
   display: flex;
   flex-direction: row;
   height: 100%;
+  padding: 2rem 0;
 `
 export const FormContainer = styled.div`
   display: flex;
   flex-direction: column;
-  width: 50%;
+  width: 100%;
   justify-content: center;
   align-items: center;
   gap: 3.5rem;
@@ -30,25 +31,16 @@ export const FormContainer = styled.div`
 `
 
 export const LoginInput = styled.input`
-  background: ${(props) => props.theme.white};
-  height: 2.5rem;
+  background: ${(props) => props.theme['gray-900']};
+  color: ${(props) => props.theme['gray-300']};
   width: 100%;
-  border-radius: 8px;
-  border: 2px solid ${(props) => props.theme['gray-500']};
-  font-weight: bold;
-  font-size: 1.125rem;
-  padding: 0 0.5rem;
-  flex: 1;
-`
+  border-radius: 6px;
+  border: 0px;
+  padding: 1rem;
 
-export const ImageContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  justify-content: center;
-  align-items: center;
-  width: 50%;
-  height: 100%;
-  background: ${(props) => props.theme.white};
+  &::placeholder {
+    color: ${(props) => props.theme['gray-500']};
+  }
 `
 
 export const SubmitLoginButton = styled.button`

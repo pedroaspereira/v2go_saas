@@ -5,7 +5,6 @@ import * as zod from 'zod'
 
 import {
   FormContainer,
-  ImageContainer,
   LoginContainer,
   LoginInput,
   SubmitLoginButton,
@@ -62,7 +61,6 @@ export function Login() {
           </SubmitLoginButton>
         </form>
       </FormContainer>
-      <ImageContainer>{/* <img src={capaImage} alt="" /> */}</ImageContainer>
     </LoginContainer>
   )
 }
