@@ -37,17 +37,17 @@ export const FormContainer = styled.div`
   }
 `
 
-export const RegisterLabelInput = styled.label``
-
 export const RegisterInput = styled.input`
-  background: ${(props) => props.theme.white};
-  height: 2.75rem;
+  background: ${(props) => props.theme['gray-900']};
+  color: ${(props) => props.theme['gray-300']};
   width: 100%;
-  border-radius: 8px;
-  border: 2px solid ${(props) => props.theme['gray-500']};
-  font-size: 1.125rem;
-  padding: 0.45rem;
-  flex: 1;
+  border-radius: 6px;
+  border: 0px;
+  padding: 1rem;
+
+  &::placeholder {
+    color: ${(props) => props.theme['gray-500']};
+  }
 `
 
 export const ImageContainer = styled.div`
@@ -63,7 +63,7 @@ export const ImageContainer = styled.div`
 export const SubmitRegisterButton = styled.button`
   width: 100%;
   border: 0;
-  padding: 0.5rem;
+  padding: 1rem;
   border-radius: 8px;
 
   display: flex;

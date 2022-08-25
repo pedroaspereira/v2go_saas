@@ -5,13 +5,11 @@ import * as zod from 'zod'
 
 import {
   FormContainer,
-  ImageContainer,
   RegisterContainer,
   RegisterInput,
   SubmitRegisterButton,
 } from './styles'
 import logoV2go from '../../assets/logoV2go.jpeg'
-// import capaImage from '../../assets/capaImage.jpeg'
 
 const registerFormValidationSchema = zod
   .object({
