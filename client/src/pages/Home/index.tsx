@@ -5,7 +5,9 @@ export function Home() {
     <div>
       <Summary />
 
-      <table></table>
+      <table>
+        <tbody></tbody>
+      </table>
     </div>
   )
 }
