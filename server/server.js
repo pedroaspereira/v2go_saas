@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 
 const compression = require('compression');
 const bodyPaser = require('body-parser');
@@ -13,6 +14,8 @@ const databaseSetup = require('./db/databaseSetup')
 const passport = require('./lib/passport');
 
 const app = express();
+
+app.use(cors());
 
 app.use(compression());
 
