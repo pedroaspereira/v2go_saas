@@ -1,7 +1,6 @@
 const passport = require('passport');
 const User = require('../models/User');
 const JwtStrategy = require('passport-jwt').Strategy;
-const ExtractJwt = require('passport-jwt').ExtractJwt;
 const LocalStrategy = require('passport-local').Strategy;
 
 const localOptions = {
@@ -48,7 +47,6 @@ const localLogin = new LocalStrategy(localOptions, function(email, password, don
 })
 
 const jwtOpts = {}
-// jwtOpts.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
 
 jwtOpts.jwtFromRequest = (req) => {
     const cookies = req.cookies;

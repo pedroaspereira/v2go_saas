@@ -10,7 +10,7 @@ import {
   SubmitRegisterButton,
 } from './styles'
 import logoV2go from '../../assets/logoV2go.jpeg'
-import { api } from '../../lib/axios'
+import { api } from '../../services/axios'
 
 const registerFormValidationSchema = zod
   .object({
@@ -39,7 +39,7 @@ export function Register() {
   async function handleRegister(data: any) {
     const { email, password } = data
     try {
-      const response = await api.post('/api/register', {
+      const response = await api.post('/register', {
         email,
         password,
       })

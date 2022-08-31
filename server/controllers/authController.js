@@ -1,348 +1,346 @@
-const User = require('../models/User')
-const passport = require('passport')
-const jwt = require('jsonwebtoken')
+const passport = require('passport');
+const jwt = require('jsonwebtoken');
 const { v1: uuidv1 } = require('uuid');
+const User = require('../models/User');
 const { sendAccountActivationEmail } = require('../lib/emailManager');
 
-exports.register = async (req, res, next) => {
-    const { email, password } = req.body
+exports.getLoggedInUser = async (req, res) => {
+  const user = User.toClientObject(req.user);
 
-    //Validate the input fields
-    const validationErrors = [];
+  res.send({
+    user,
+  });
+};
 
-    if (!email) {
-        validationErrors.push({
-            code: 'VALIDATION_ERROR',
-            field: 'email',
-            message: 'You must provide an email address'
-        })
+exports.register = async (req, res) => {
+  const { email, password } = req.body;
+
+  // Validate the input fields
+  const validationErrors = [];
+
+  if (!email) {
+    validationErrors.push({
+      code: 'VALIDATION_ERROR',
+      field: 'email',
+      message: 'You must provide an email address',
+    });
+  }
+
+  if (!password) {
+    validationErrors.push({
+      code: 'VALIDATION_ERROR',
+      field: 'password',
+      message: 'You must provide a password',
+    });
+  }
+
+  if (validationErrors.length) {
+    const errorObject = {
+      error: true,
+      errors: validationErrors,
+    };
+    res.send(errorObject);
+
+    return;
+  }
+
+  // Save user data to the database
+
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      const errorObject = {
+        error: true,
+        errors: [{
+          code: 'VALIDATION_ERROR',
+          field: 'Email',
+          message: 'Email already exists',
+        }],
+      };
+
+      res.status(422).send(errorObject);
+      return;
     }
 
-    if (!password) {
-        validationErrors.push({
-            code: 'VALIDATION_ERROR',
-            field: 'password',
-            message: 'You must provide a password'
-        })
-    }
+    const user = new User({
+      email,
+      password,
+      isAdmin: false,
+      activated: false,
+      activationToken: uuidv1(),
+      activationTokenSentAt: Date.now(),
+    });
 
-    if (validationErrors.length) {
-        const errorObject = {
-            error: true,
-            errors: validationErrors
-        }
-        res.send(errorObject);
+    const savedUser = await user.save();
 
-        return;
-    }
+    console.log('savedUsed', savedUser);
 
-    // Save user data to the database
+    // Here => we will send the email
+    sendAccountActivationEmail(savedUser);
 
-    try {
-        const existingUser = await User.findOne({ email: email })
-        if (existingUser) {
-            const errorObject = {
-                error: true,
-                errors: [{
-                    code: 'VALIDATION_ERROR',
-                    field: 'Email',
-                    message: 'Email already exists'
-                }]
-            }
-
-            res.status(422).send(errorObject);
-            return;
-        }
-
-        let user = new User({
-            email,
-            password,
-            isAdmin: false,
-            activated: false,
-            activationToken: uuidv1(),
-            activationTokenSentAt: Date.now()
-        });
-
-        const savedUser = await user.save();
-
-        console.log('savedUsed', savedUser);
-
-        // Here => we will send the email
-        sendAccountActivationEmail(savedUser);
-
-        res.status(200).send({
-            user: User.toClientObject(savedUser)
-        })
-    } catch (err) {
-        console.log('error', err)
-    }
-}
+    res.status(200).send({
+      user: User.toClientObject(savedUser),
+    });
+  } catch (err) {
+    console.log('error', err);
+  }
+};
 
 exports.login = async (req, res, next) => {
-    const { email, password } = req.body
+  const { email, password } = req.body;
 
-    //Validate the input fields
-    const validationErrors = [];
+  // Validate the input fields
+  const validationErrors = [];
 
-    if (!email) {
-        validationErrors.push({
-            code: 'VALIDATION_ERROR',
-            field: 'email',
-            message: 'You must provide an email address'
-        })
+  if (!email) {
+    validationErrors.push({
+      code: 'VALIDATION_ERROR',
+      field: 'email',
+      message: 'You must provide an email address',
+    });
+  }
+
+  if (!password) {
+    validationErrors.push({
+      code: 'VALIDATION_ERROR',
+      field: 'password',
+      message: 'You must provide a password',
+    });
+  }
+
+  if (validationErrors.length) {
+    const errorObject = {
+      error: true,
+      errors: validationErrors,
+    };
+    res.send(errorObject);
+
+    return;
+  }
+
+  passport.authenticate('local', (err, user, info) => {
+    if (err) {
+      return next(err);
     }
 
-    if (!password) {
-        validationErrors.push({
-            code: 'VALIDATION_ERROR',
-            field: 'password',
-            message: 'You must provide a password'
-        })
+    if (!user) {
+      res.status(401).send(info);
+      return;
     }
 
-    if (validationErrors.length) {
-        const errorObject = {
-            error: true,
-            errors: validationErrors
-        }
-        res.send(errorObject);
+    const userObject = user.toObject();
+    const tokenObject = {
+      _id: userObject._id,
 
-        return;
+    };
+    const jwtToken = jwt.sign(tokenObject, process.env.JWT_SECRET, {
+      expiresIn: 86400, // seconds in a day
+    });
+
+    res.status(200).send({
+      token: jwtToken,
+      user: User.toClientObject(user),
+    });
+  })(req, res, next);
+};
+
+exports.accountActivate = async (req, res) => {
+  const { activationToken } = req.body;
+
+  if (!activationToken) {
+    const errorObject = {
+      error: true,
+      errors: [{
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid Activation Token. Peharps you requested a new tolen?',
+      }],
+    };
+
+    res.status(422).send(errorObject);
+    return;
+  }
+
+  try {
+    const user = await User.findOne({
+      activationToken,
+    });
+
+    if (!user) {
+      const errorObject = {
+        error: true,
+        errors: [{
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid Activation Token. Peharps you requested a new tolen?',
+        }],
+      };
+
+      res.status(422).send(errorObject);
+      return;
     }
 
-    passport.authenticate('local', (err, user, info) => {
-        if (err) {
-            return next(err);
-        }
+    // We found a user
 
-        if (!user) {
-            res.status(401).send(info)
-            return;
-        }
+    user.activated = true;
+    user.activationToken = undefined;
+    user.activatiAt = Date.now();
 
-        const userObject = user.toObject();
-        const tokenObject = {
-            _id: userObject._id
+    await user.save();
 
-        }
-        const jwtToken = jwt.sign(tokenObject, process.env.JWT_SECRET, {
-            expiresIn: 86400 // seconds in a day
-        });
+    return res.send({
+      message: 'Your account has been activated. Please proceed to the login page',
+    });
+  } catch (err) {
+    console.log('error ', err);
+    res.status(500).send({
+      error: true,
+    });
+  }
+};
 
-        res.status(200).send({
-            token: jwtToken,
-            user: User.toClientObject(user)
-        })
+exports.resendActivationLink = async (req, res) => {
+  const {
+    email,
+  } = req.body;
 
-        return;
-    })(req, res, next);
-}
+  if (!email) {
+    const errorObject = {
+      error: true,
+      errors: [{
+        code: 'VALIDATION_ERROR',
+        message: 'Please specify the email account that needs activation',
+      }],
+    };
 
-exports.accountActivate = async(req, res, next) => {
-    const { activationToken } = req.body;
+    res.status(422).send(errorObject);
 
-    if (!activationToken) {
-        const errorObject = {
-            error: true,
-            errors: [{
-                code: 'VALIDATION_ERROR',
-                message: 'Invalid Activation Token. Peharps you requested a new tolen?'
-            }]
-        }
+    return;
+  }
 
-        res.status(422).send(errorObject);
-        return;
+  try {
+    const user = await User.findOne({
+      email,
+    });
+
+    if (!user) {
+      // Ignore
     }
 
-    try {
-        const user = await User.findOne({
-            activationToken
-        })
+    if (user && !user.activated) {
+      user.activationToken = uuidv1(),
+      user.activationTokenSentAt = Date.now();
 
-        if(!user) {
-            const errorObject = {
-                error: true,
-                errors: [{
-                    code: 'VALIDATION_ERROR',
-                    message: 'Invalid Activation Token. Peharps you requested a new tolen?'
-                }]
-            }
+      await user.save();
 
-            res.status(422).send(errorObject);
-            return;
-        }
-
-        // We found a user
-
-        user.activated = true
-        user.activationToken = undefined;
-        user.activatiAt = Date.now();
-        
-        const savedUser = await user.save();
-
-        return res.send({
-            message: 'Your account has been activated. Please proceed to the login page'
-        })
-
-    } catch (err) {
-        console.log('error ', err);
-        res.status(500).send({
-            error: true,
-        })
-    }
-}
-
-exports.resendActivationLink = async (req, res, next) => {
-    const {
-        email
-    } = req.body;
-
-    if (!email) {
-        const errorObject = {
-            error: true,
-            errors: [{
-                code: 'VALIDATION_ERROR',
-                message: 'Please specify the email account that needs activation'
-            }]
-        }
-
-        res.status(422).send(errorObject);
-        
-        return;
+      // Send activation email
+      // ...
     }
 
-    try {
-        const user = await User.findOne({
-            email
-        })
+    return res.send({
+      message: 'Activation Link has been sent',
+    });
+  } catch (err) {
+    console.log('error ', err);
+    res.status(500).send({
+      error: true,
+    });
+  }
+};
 
-        if (!user) {
-            // Ignore
-        }
+exports.resetPasswordLink = async (req, res) => {
+  const { email } = req.body;
 
-        if (user && !user.activated) {
-            user.activationToken = uuidv1(),
-            user.activationTokenSentAt = Date.now()
+  if (!email) {
+    const errorObject = {
+      error: true,
+      errors: [{
+        code: 'VALIDATION_ERROR',
+        message: 'Please specify the email account that needs password reset',
+      }],
+    };
 
-            await user.save()
+    res.status(422).send(errorObject);
 
-            // Send activation email
-            //...
-        }
+    return;
+  }
 
-        return res.send({
-            message: 'Activation Link has been sent'
-        })
+  try {
+    const user = await User.findOne({
+      email,
+    });
 
-    } catch (err) {
-        console.log('error ', err);
-        res.status(500).send({
-            error: true,
-        })
-
-    }
-}
-
-exports.resetPasswordLink = async (req, res, next) => {
-    const { email } = req.body;
-
-    if (!email) {
-        const errorObject = {
-            error: true,
-            errors: [{
-                code: 'VALIDATION_ERROR',
-                message: 'Please specify the email account that needs password reset'
-            }]
-        }
-
-        res.status(422).send(errorObject);
-        
-        return;
+    if (!user) {
+      // Ignore
     }
 
-    try {
-        const user = await User.findOne({
-           email 
-        })
+    user.resetPasswordToken = uuidv1();
+    user.resetPasswordTokenSentAt = Date.now();
 
-        if (!user) {
-            // Ignore
-        }
+    await user.save();
 
-        user.resetPasswordToken = uuidv1();
-        user.resetPasswordTokenSentAt = Date.now();
+    // Sent email now...
 
-        const savedUser = user.save();
+    return res.send({
+      message: 'Reset Password Link has been sent',
+    });
+  } catch (err) {
+    console.log('error ', err);
+    res.status(500).send({
+      error: true,
+    });
+  }
+};
 
-        // Sent email now...
+exports.resetPassword = async (req, res) => {
+  const {
+    resetPasswordToken,
+    password,
+  } = req.body;
 
-        return res.send({
-            message: 'Reset Password Link has been sent'
-        })
+  const validationErrors = [];
 
+  if (!password || !resetPasswordToken) {
+    validationErrors.push({
+      code: 'VALIDATION_ERROR',
+      field: '',
+      message: 'Sorry, we could not update yourpassword',
+    });
+  }
 
-    } catch (err) {
-        console.log('error ', err);
-        res.status(500).send({
-            error: true,
-        })
+  if (validationErrors.lenght) {
+    return res.status(422).sned(validationErrors);
+  }
 
-    }
-}
+  try {
+    const user = await User.findOne({
+      resetPasswordToken,
+    });
 
-exports.resetPassword = async (req, res, next) => {
-    const {
-        resetPasswordToken,
-        password
-    } = req.body
-
-    const validationErrors = [];
-
-    if (!password || !resetPasswordToken) {
-        validationErrors.push({
-            code: 'VALIDATION_ERROR',
-            field: '',
-            message: 'Sorry, we could not update yourpassword',
-        })
-
-    }
-
-    if (validationErrors.lenght) {
-        return res.status(422).sned(validationErrors);
+    if (!user) {
+      // Ignore
     }
 
-    try {
-        const user = await User.findOne({
-            resetPasswordToken
-        });
+    if (user) {
+      user.password = password;
+      user.resetPasswordToken = undefined;
 
-        if (!user) {
-            // Ignore
-        }
-
-        if (user) {
-            user.password = password;
-            user.resetPasswordToken = undefined;
-
-            const savedUser = await user.save()
-        }
-
-        res.status(200).send({
-            message: 'Your password has been successfully updated. Please go to the Login page to sign in again'
-        })
-    } catch (err) {
-        console.log('error ', err);
-        res.status(500).send({
-            error: true,
-        })
-
+      await user.save();
     }
-}
 
-exports.testAuth = async (req, res, next) => {
-    console.log('req.user', req.user)
+    res.status(200).send({
+      message: 'Your password has been successfully updated. Please go to the Login page to sign in again',
+    });
+  } catch (err) {
+    console.log('error ', err);
+    res.status(500).send({
+      error: true,
+    });
+  }
+};
 
-    res.send({
-        isLoggedIn: req.user ? true : false
-    })
-}
+exports.testAuth = async (req, res) => {
+  console.log('req.user', req.user);
+
+  res.send({
+    isLoggedIn: !!req.user,
+  });
+};

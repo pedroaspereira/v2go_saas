@@ -10,18 +10,21 @@ import {
   SubmitLoginButton,
 } from './styles'
 import logoV2go from '../../assets/logoV2go.jpeg'
-import { api } from '../../lib/axios'
+import { useContext, useEffect } from 'react'
+import { AuthContext } from '../../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 // import capaImage from '../../assets/capaImage.jpeg'
 
 const loginFormValidationSchema = zod.object({
   email: zod.string().email({ message: 'Insira um e-mail válido' }),
-  password: zod.string().min(7).max(60),
+  password: zod.string().min(5).max(60),
 })
 
 type LoginFormData = zod.infer<typeof loginFormValidationSchema>
 
 export function Login() {
-  // const [] = useState()
+  const { signIn } = useContext(AuthContext)
+  const navigate = useNavigate()
   const {
     register,
     handleSubmit,
@@ -36,17 +39,9 @@ export function Login() {
     },
   })
 
-  async function handleLogin(data: any) {
-    const { email, password } = data
-    try {
-      const response = await api.post('/api/login', {
-        email,
-        password,
-      })
-      console.log(response)
-    } catch (err) {
-      console.log(err)
-    }
+  async function handleLogin(data: LoginFormData) {
+    await signIn(data)
+    navigate('/')
     reset()
   }
 
